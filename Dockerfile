@@ -28,18 +28,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy workspace config first (cache-friendly layer ordering)
 COPY package.json bun.lock turbo.json tsconfig.base.json ./
 
-# Copy ALL workspace package.json files so bun can resolve the full workspace graph.
-# Only server, web, contracts, shared, and scripts source is copied below.
+# Copy ONLY the workspace packages needed for the server deployment.
+# Desktop (Electron) and marketing (Astro) are excluded entirely to avoid
+# pulling in their heavy dependency trees.
 COPY apps/web/package.json ./apps/web/
 COPY apps/server/package.json ./apps/server/
-COPY apps/desktop/package.json ./apps/desktop/
-COPY apps/marketing/package.json ./apps/marketing/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/shared/package.json ./packages/shared/
 COPY scripts/package.json ./scripts/
 
-# Install dependencies
-RUN bun install --frozen-lockfile
+# Install dependencies (lockfile is used for resolution but not enforced
+# as frozen since the workspace is intentionally trimmed for deployment)
+RUN bun install
 
 # Copy source code (only packages needed for the server build)
 COPY apps/web/ ./apps/web/
@@ -47,9 +47,16 @@ COPY apps/server/ ./apps/server/
 COPY packages/ ./packages/
 COPY scripts/ ./scripts/
 
-# Build the server and its dependency graph (contracts → shared → web → server).
-# The server build bundles apps/web/dist into apps/server/dist/client automatically.
-RUN npx turbo run build --filter=t3
+# Build the dependency graph: contracts → shared → web
+RUN npx turbo run build --filter=@t3tools/web
+
+# Build the server directly with tsdown (bypasses cli.ts which requires
+# development icon assets that may not exist in all forks)
+RUN cd apps/server && bun tsdown
+
+# Bundle the built web app into the server's dist/client directory
+# (mirrors what apps/server/scripts/cli.ts build does, minus icon overrides)
+RUN cp -r apps/web/dist apps/server/dist/client
 
 # --- Stage 2: Runtime ---
 FROM oven/bun:1-slim

@@ -13,17 +13,11 @@ node_modules
 .vscode
 .cursor
 
-# Railway instruction docs (reference only, not needed in image)
+# Railway instruction docs (not needed in image)
 railway-instruction/
 
-# Desktop app source (package.json is copied explicitly for workspace resolution)
-apps/desktop/src/
-apps/desktop/scripts/
-apps/desktop/electron/
-apps/desktop/tsconfig*.json
+# Desktop app (not needed for server deployment)
+apps/desktop/
 
-# Marketing site source
-apps/marketing/src/
-apps/marketing/public/
-apps/marketing/tsconfig*.json
-apps/marketing/astro.config.*
+# Marketing site (not needed for server deployment)
+apps/marketing/
