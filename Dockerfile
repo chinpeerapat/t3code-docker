@@ -89,11 +89,13 @@ COPY --from=builder /app /app
 # Prevent the server from trying to open a browser in a container
 ENV T3CODE_NO_BROWSER=true
 
-EXPOSE ${T3CODE_PORT:-3773}
+EXPOSE 3773
 
 # Working directory is the persistent volume so the server auto-bootstraps
 # projects from /workspace (process.cwd() becomes the workspace root)
 WORKDIR /workspace
 
-# Start the server with absolute path, binding to all interfaces for Railway
-CMD ["node", "/app/apps/server/dist/index.mjs", "--host", "0.0.0.0"]
+# Railway injects PORT and routes traffic to it. Bridge it to the server's
+# --port flag so the healthcheck can reach the app. Falls back to 3773 for
+# local Docker runs where PORT isn't set.
+CMD ["sh", "-c", "exec node /app/apps/server/dist/index.mjs --host 0.0.0.0 --port ${PORT:-3773}"]
