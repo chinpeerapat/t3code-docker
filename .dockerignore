@@ -1,0 +1,29 @@
+# Dependencies (reinstalled inside Docker)
+node_modules
+.turbo
+
+# Build outputs (rebuilt inside Docker)
+**/dist
+**/dist-electron
+
+# Version control
+.git
+
+# IDE / editor
+.vscode
+.cursor
+
+# Railway instruction docs (reference only, not needed in image)
+railway-instruction/
+
+# Desktop app source (package.json is copied explicitly for workspace resolution)
+apps/desktop/src/
+apps/desktop/scripts/
+apps/desktop/electron/
+apps/desktop/tsconfig*.json
+
+# Marketing site source
+apps/marketing/src/
+apps/marketing/public/
+apps/marketing/tsconfig*.json
+apps/marketing/astro.config.*
