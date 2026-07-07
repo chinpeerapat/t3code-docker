@@ -12,6 +12,7 @@ import {
   type EnvironmentId,
   type FilesystemBrowseResult,
   type ProjectId,
+  type ProjectWorkspaceKind,
   ProviderInstanceId,
   type SourceControlDiscoveryResult,
   type SourceControlProviderKind,
@@ -25,6 +26,7 @@ import {
   ArrowLeftIcon,
   ArrowUpIcon,
   CornerLeftUpIcon,
+  FileTextIcon,
   FolderIcon,
   FolderPlusIcon,
   LinkIcon,
@@ -483,6 +485,8 @@ function OpenCommandPaletteDialog(props: {
     null,
   );
   const [isPickingProjectFolder, setIsPickingProjectFolder] = useState(false);
+  const [addProjectWorkspaceKind, setAddProjectWorkspaceKind] =
+    useState<ProjectWorkspaceKind>("code");
   const [addProjectCloneFlow, setAddProjectCloneFlow] = useState<AddProjectCloneFlow | null>(null);
   const [isRemoteProjectLookingUp, setIsRemoteProjectLookingUp] = useState(false);
   const [isRemoteProjectCloning, setIsRemoteProjectCloning] = useState(false);
@@ -756,11 +760,17 @@ function OpenCommandPaletteDialog(props: {
   }
 
   const startAddProjectBrowse = useCallback(
-    (environmentId: EnvironmentId): void => {
+    (environmentId: EnvironmentId, workspaceKind: ProjectWorkspaceKind = "code"): void => {
       setAddProjectEnvironmentId(environmentId);
+      setAddProjectWorkspaceKind(workspaceKind);
       setAddProjectCloneFlow(null);
       pushPaletteView({
-        addonIcon: <FolderPlusIcon className={ADDON_ICON_CLASS} />,
+        addonIcon:
+          workspaceKind === "docs" ? (
+            <FileTextIcon className={ADDON_ICON_CLASS} />
+          ) : (
+            <FolderPlusIcon className={ADDON_ICON_CLASS} />
+          ),
         groups: [],
         initialQuery: getAddProjectInitialQueryForEnvironment(environmentId),
       });
@@ -771,6 +781,7 @@ function OpenCommandPaletteDialog(props: {
   const startAddProjectClone = useCallback(
     (environmentId: EnvironmentId, source: AddProjectRemoteSource): void => {
       setAddProjectEnvironmentId(environmentId);
+      setAddProjectWorkspaceKind("code");
       setAddProjectCloneFlow({ step: "repository", environmentId, source });
       pushPaletteView({
         addonIcon: remoteProjectSourceIcon(source, ADDON_ICON_CLASS),
@@ -802,6 +813,18 @@ function OpenCommandPaletteDialog(props: {
           keepOpen: true,
           run: async () => {
             startAddProjectBrowse(environmentId);
+          },
+        },
+        {
+          kind: "action",
+          value: `action:add-project:${environmentId}:docs`,
+          searchTerms: ["docs", "documents", "writing", "workspace", "non-coding", "work"],
+          title: "Docs workspace",
+          description: "A folder for documents and non-coding work",
+          icon: <FileTextIcon className={ITEM_ICON_CLASS} />,
+          keepOpen: true,
+          run: async () => {
+            startAddProjectBrowse(environmentId, "docs");
           },
         },
       ];
@@ -1155,6 +1178,7 @@ function OpenCommandPaletteDialog(props: {
           projectId,
           title: inferProjectTitleFromPath(cwd),
           workspaceRoot: cwd,
+          workspaceKind: addProjectWorkspaceKind,
           createWorkspaceRootIfMissing: true,
           defaultModelSelection: {
             instanceId: ProviderInstanceId.make("codex"),
@@ -1200,6 +1224,7 @@ function OpenCommandPaletteDialog(props: {
       setOpen,
       clientSettings.sidebarThreadSortOrder,
       threads,
+      addProjectWorkspaceKind,
     ],
   );
 

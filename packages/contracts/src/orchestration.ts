@@ -208,10 +208,25 @@ export const ProjectScript = Schema.Struct({
 });
 export type ProjectScript = typeof ProjectScript.Type;
 
+/**
+ * The kind of work a project hosts. `code` projects keep the full software
+ * workflow (worktrees, branches, diffs, terminal). `docs` projects target
+ * non-coding work: threads run in-place on the workspace root and the
+ * git-based version machinery stays hidden from the user.
+ */
+export const ProjectWorkspaceKind = Schema.Literals(["code", "docs"]);
+export type ProjectWorkspaceKind = typeof ProjectWorkspaceKind.Type;
+export const DEFAULT_PROJECT_WORKSPACE_KIND: ProjectWorkspaceKind = "code";
+
+const ProjectWorkspaceKindWithDefault = ProjectWorkspaceKind.pipe(
+  Schema.withDecodingDefault(Effect.succeed(DEFAULT_PROJECT_WORKSPACE_KIND)),
+);
+
 export const OrchestrationProject = Schema.Struct({
   id: ProjectId,
   title: TrimmedNonEmptyString,
   workspaceRoot: TrimmedNonEmptyString,
+  workspaceKind: ProjectWorkspaceKindWithDefault,
   repositoryIdentity: Schema.optional(Schema.NullOr(RepositoryIdentity)),
   defaultModelSelection: Schema.NullOr(ModelSelection),
   scripts: Schema.Array(ProjectScript),
@@ -379,6 +394,7 @@ export const OrchestrationProjectShell = Schema.Struct({
   id: ProjectId,
   title: TrimmedNonEmptyString,
   workspaceRoot: TrimmedNonEmptyString,
+  workspaceKind: ProjectWorkspaceKindWithDefault,
   repositoryIdentity: Schema.optional(Schema.NullOr(RepositoryIdentity)),
   defaultModelSelection: Schema.NullOr(ModelSelection),
   scripts: Schema.Array(ProjectScript),
@@ -489,6 +505,7 @@ export const ProjectCreateCommand = Schema.Struct({
   projectId: ProjectId,
   title: TrimmedNonEmptyString,
   workspaceRoot: TrimmedNonEmptyString,
+  workspaceKind: Schema.optional(ProjectWorkspaceKind),
   createWorkspaceRootIfMissing: Schema.optional(Schema.Boolean),
   defaultModelSelection: Schema.optional(Schema.NullOr(ModelSelection)),
   createdAt: IsoDateTime,
@@ -835,6 +852,7 @@ export const ProjectCreatedPayload = Schema.Struct({
   projectId: ProjectId,
   title: TrimmedNonEmptyString,
   workspaceRoot: TrimmedNonEmptyString,
+  workspaceKind: ProjectWorkspaceKindWithDefault,
   repositoryIdentity: Schema.optional(Schema.NullOr(RepositoryIdentity)),
   defaultModelSelection: Schema.NullOr(ModelSelection),
   scripts: Schema.Array(ProjectScript),

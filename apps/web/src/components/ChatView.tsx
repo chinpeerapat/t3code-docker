@@ -771,7 +771,7 @@ const PersistentThreadTerminalDrawer = memo(function PersistentThreadTerminalDra
     [onAddTerminalContext, visible],
   );
 
-  if (!project || !terminalUiState.terminalOpen || !cwd) {
+  if (!project || project.workspaceKind === "docs" || !terminalUiState.terminalOpen || !cwd) {
     return null;
   }
 
@@ -939,7 +939,7 @@ const PersistentThreadTerminalPanel = memo(function PersistentThreadTerminalPane
     threadWorktreePath,
   ]);
 
-  if (!project || !cwd) return null;
+  if (!project || project.workspaceKind === "docs" || !cwd) return null;
 
   return (
     <ThreadTerminalDrawer
@@ -2151,6 +2151,10 @@ function ChatViewContent(props: ChatViewProps) {
     terminalUiLaunchContext?.threadId === activeThreadId ? terminalUiLaunchContext : null;
   // Default true while loading to avoid toolbar flicker.
   const isGitRepo = gitStatusQuery.data?.isRepo ?? true;
+  // Docs projects keep a hidden git repo for checkpointing, but every
+  // git-facing surface (branch toolbar, diffs, PR actions) stays hidden.
+  const isDocsProject = activeProject?.workspaceKind === "docs";
+  const showVcsChrome = isGitRepo && !isDocsProject;
   const terminalShortcutLabelOptions = useMemo(
     () => ({
       context: {
@@ -2770,10 +2774,10 @@ function ChatViewContent(props: ChatViewProps) {
     void addBrowserSurface({ threadRef: activeThreadRef, openPreview });
   }, [activeThreadRef, openPreview]);
   const addDiffSurface = useCallback(() => {
-    if (!activeThreadRef || !isServerThread || !isGitRepo) return;
+    if (!activeThreadRef || !isServerThread || !showVcsChrome) return;
     useRightPanelStore.getState().open(activeThreadRef, "diff");
     onDiffPanelOpen?.();
-  }, [activeThreadRef, isGitRepo, isServerThread, onDiffPanelOpen]);
+  }, [activeThreadRef, showVcsChrome, isServerThread, onDiffPanelOpen]);
   const addFilesSurface = useCallback(() => {
     if (!activeThreadRef || !activeProject) return;
     useRightPanelStore.getState().open(activeThreadRef, "files");
@@ -2806,6 +2810,7 @@ function ChatViewContent(props: ChatViewProps) {
   }, [activeThreadRef]);
   const addTerminalSurface = useCallback(() => {
     if (!activeThreadRef || !activeThreadId || !activeProject) return;
+    if (activeProject.workspaceKind === "docs") return;
     const cwd = gitCwd ?? activeProject.workspaceRoot;
     const terminalId = nextTerminalId([...activeKnownTerminalIds, ...panelTerminalIds]);
     useRightPanelStore.getState().openTerminal(activeThreadRef, terminalId);
@@ -3591,6 +3596,7 @@ function ChatViewContent(props: ChatViewProps) {
   const sendEnvMode = resolveSendEnvMode({
     requestedEnvMode: envMode,
     isGitRepo,
+    ...(activeProject ? { workspaceKind: activeProject.workspaceKind } : {}),
   });
 
   useEffect(() => {
@@ -5049,6 +5055,7 @@ function ChatViewContent(props: ChatViewProps) {
             availableEditors={availableEditors}
             rightPanelOpen={rightPanelOpen}
             gitCwd={gitCwd}
+            showGitActions={showVcsChrome}
             onRunProjectScript={runProjectScript}
             onAddProjectScript={saveProjectScript}
             onUpdateProjectScript={updateProjectScript}
@@ -5218,12 +5225,12 @@ function ChatViewContent(props: ChatViewProps) {
               <div
                 className={cn(
                   "chat-composer-horizontal-inset chat-composer-lower-chrome relative z-10",
-                  isGitRepo
+                  showVcsChrome
                     ? "pb-[calc(env(safe-area-inset-bottom)+0.25rem)]"
                     : "pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:pb-[calc(env(safe-area-inset-bottom)+1rem)]",
                 )}
               >
-                {isGitRepo && (
+                {showVcsChrome && (
                   <div className="pointer-events-auto">
                     <BranchToolbar
                       environmentId={activeThread.environmentId}
@@ -5315,7 +5322,8 @@ function ChatViewContent(props: ChatViewProps) {
           onAddDiff={addDiffSurface}
           onAddFiles={addFilesSurface}
           browserAvailable={isPreviewSupportedInRuntime()}
-          diffAvailable={isServerThread && isGitRepo}
+          terminalAvailable={!isDocsProject}
+          diffAvailable={isServerThread && showVcsChrome}
           filesAvailable={activeProject !== null}
         >
           {rightPanelContent}
@@ -5342,7 +5350,8 @@ function ChatViewContent(props: ChatViewProps) {
             onAddDiff={addDiffSurface}
             onAddFiles={addFilesSurface}
             browserAvailable={isPreviewSupportedInRuntime()}
-            diffAvailable={isServerThread && isGitRepo}
+            terminalAvailable={!isDocsProject}
+            diffAvailable={isServerThread && showVcsChrome}
             filesAvailable={activeProject !== null}
           >
             {rightPanelContent}

@@ -12,6 +12,7 @@ function makeProject(
 ): EnvironmentProject {
   return {
     workspaceRoot: `/workspaces/${input.id}`,
+    workspaceKind: "code",
     repositoryIdentity: null,
     defaultModelSelection: null,
     scripts: [],

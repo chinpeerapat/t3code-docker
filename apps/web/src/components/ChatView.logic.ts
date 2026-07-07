@@ -3,6 +3,7 @@ import {
   isProviderDriverKind,
   ProjectId,
   type ModelSelection,
+  type ProjectWorkspaceKind,
   type ProviderDriverKind,
   type ServerProvider,
   type ScopedThreadRef,
@@ -189,7 +190,13 @@ export function readFileAsDataUrl(file: File): Promise<string> {
 export function resolveSendEnvMode(input: {
   requestedEnvMode: DraftThreadEnvMode;
   isGitRepo: boolean;
+  workspaceKind?: ProjectWorkspaceKind;
 }): DraftThreadEnvMode {
+  // Docs projects always run in-place on the workspace root: worktrees are a
+  // coding-workflow concept and stay hidden for non-coding work.
+  if (input.workspaceKind === "docs") {
+    return "local";
+  }
   return input.isGitRepo ? input.requestedEnvMode : "local";
 }
 

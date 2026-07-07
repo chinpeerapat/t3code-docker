@@ -29,6 +29,7 @@ const readModel: OrchestrationReadModel = {
       id: ProjectId.make("project-a"),
       title: "Project A",
       workspaceRoot: "/tmp/project-a",
+      workspaceKind: "code",
       defaultModelSelection: {
         instanceId: ProviderInstanceId.make("codex"),
         model: "gpt-5-codex",
@@ -42,6 +43,7 @@ const readModel: OrchestrationReadModel = {
       id: ProjectId.make("project-b"),
       title: "Project B",
       workspaceRoot: "/tmp/project-b",
+      workspaceKind: "code",
       defaultModelSelection: {
         instanceId: ProviderInstanceId.make("codex"),
         model: "gpt-5-codex",

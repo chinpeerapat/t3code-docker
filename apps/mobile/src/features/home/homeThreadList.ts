@@ -147,6 +147,7 @@ export function buildHomeThreadGroups(input: {
             title: pendingTask.creation.projectTitle ?? "Unknown project",
             workspaceRoot:
               pendingTask.creation.projectCwd ?? String(pendingTask.creation.projectId),
+            workspaceKind: "code",
             repositoryIdentity: null,
             defaultModelSelection: null,
             scripts: [],

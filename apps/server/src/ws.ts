@@ -949,6 +949,37 @@ const makeWsRpcLayer = (
             ORCHESTRATION_WS_METHODS.dispatchCommand,
             Effect.gen(function* () {
               const normalizedCommand = yield* normalizeDispatchCommand(command);
+              if (
+                normalizedCommand.type === "project.create" &&
+                normalizedCommand.workspaceKind === "docs"
+              ) {
+                // Docs projects hide version control from the user but still rely
+                // on git for checkpointing, so make sure the workspace root is a
+                // repository before the project lands.
+                const localStatus = yield* gitWorkflow
+                  .localStatus({ cwd: normalizedCommand.workspaceRoot })
+                  .pipe(
+                    Effect.mapError((cause) =>
+                      toDispatchCommandError(
+                        cause,
+                        "Failed to inspect the workspace root for the new project.",
+                      ),
+                    ),
+                  );
+                if (!localStatus.isRepo) {
+                  yield* vcsProvisioning
+                    .initRepository({ cwd: normalizedCommand.workspaceRoot, kind: "git" })
+                    .pipe(
+                      Effect.mapError((cause) =>
+                        toDispatchCommandError(
+                          cause,
+                          "Failed to prepare version tracking for the new project.",
+                        ),
+                      ),
+                    );
+                  yield* refreshGitStatus(normalizedCommand.workspaceRoot);
+                }
+              }
               const shouldStopSessionAfterArchive =
                 normalizedCommand.type === "thread.archive"
                   ? yield* projectionSnapshotQuery
