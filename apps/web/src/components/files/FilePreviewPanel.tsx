@@ -52,6 +52,7 @@ import { installFileEditorDismissal } from "./fileEditorDismissal";
 import { LocalCommentAnnotation } from "./LocalCommentAnnotation";
 import { projectFileCacheKey } from "./fileContentRevision";
 import { fileBreadcrumbs } from "./filePath";
+import ArtifactPreviewSurface, { resolveArtifactPreviewKind } from "./ArtifactPreviewSurface";
 import { isMarkdownPreviewFile, setMarkdownTaskChecked } from "./filePreviewMode";
 import { FileSaveCoordinator } from "./fileSaveCoordinator";
 import {
@@ -630,7 +631,8 @@ export default function FilePreviewPanel({
   const openPreview = useAtomCommand(previewEnvironment.open, {
     reportFailure: false,
   });
-  const file = useProjectFileQuery(environmentId, cwd, relativePath);
+  const artifactKind = relativePath ? resolveArtifactPreviewKind(relativePath) : null;
+  const file = useProjectFileQuery(environmentId, cwd, artifactKind !== null ? null : relativePath);
   const [explorerOpen, setExplorerOpen] = useState(initialExplorerOpen);
   const [markdownView, setMarkdownView] = useState<{
     path: string | null;
@@ -818,7 +820,18 @@ export default function FilePreviewPanel({
             relativePath ? "flex" : "hidden",
           )}
         >
-          {relativePath && file.error && file.data === null ? (
+          {relativePath && artifactKind !== null && absolutePath ? (
+            <ArtifactPreviewSurface
+              key={`${relativePath}:${artifactKind}`}
+              kind={artifactKind}
+              environmentId={environmentId}
+              threadId={threadRef.threadId}
+              absolutePath={absolutePath}
+              fileName={relativePath.split("/").at(-1) ?? relativePath}
+              httpBaseUrl={environmentHttpBaseUrl}
+              createAssetUrl={createAssetUrl}
+            />
+          ) : relativePath && file.error && file.data === null ? (
             <div className="flex min-h-0 flex-1 items-center justify-center px-6 text-center text-xs leading-relaxed text-destructive">
               {file.error}
             </div>

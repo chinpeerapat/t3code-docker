@@ -14,6 +14,7 @@ import {
   AssetWorkspaceRootNormalizationError,
 } from "@t3tools/contracts";
 import {
+  isWorkspaceDocumentPreviewPath,
   isWorkspaceImagePreviewPath,
   isWorkspacePreviewEntryPath,
   WORKSPACE_BROWSER_PREVIEW_EXTENSIONS,
@@ -236,21 +237,23 @@ export const issueAssetUrl = Effect.fn("AssetAccess.issueAssetUrl")(function* (i
             }),
         ),
       );
-      claims = isWorkspaceImagePreviewPath(resolved.relativePath)
-        ? {
-            version: 1,
-            kind: "workspace-file-exact",
-            workspaceRoot: canonicalWorkspaceRoot,
-            relativePath: resolved.relativePath,
-            expiresAt,
-          }
-        : {
-            version: 1,
-            kind: "workspace-file",
-            workspaceRoot: canonicalWorkspaceRoot,
-            baseRelativePath: path.dirname(resolved.relativePath),
-            expiresAt,
-          };
+      claims =
+        isWorkspaceImagePreviewPath(resolved.relativePath) ||
+        isWorkspaceDocumentPreviewPath(resolved.relativePath)
+          ? {
+              version: 1,
+              kind: "workspace-file-exact",
+              workspaceRoot: canonicalWorkspaceRoot,
+              relativePath: resolved.relativePath,
+              expiresAt,
+            }
+          : {
+              version: 1,
+              kind: "workspace-file",
+              workspaceRoot: canonicalWorkspaceRoot,
+              baseRelativePath: path.dirname(resolved.relativePath),
+              expiresAt,
+            };
       fileName = path.basename(resolved.relativePath);
       break;
     }

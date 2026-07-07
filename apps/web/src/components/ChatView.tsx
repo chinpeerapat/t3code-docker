@@ -3839,11 +3839,18 @@ function ChatViewContent(props: ChatViewProps) {
         return;
       }
       const confirmed = await localApi.dialogs.confirm(
-        [
-          `Revert this thread to checkpoint ${turnCount}?`,
-          "This will discard newer messages and turn diffs in this thread.",
-          "This action cannot be undone.",
-        ].join("\n"),
+        (isDocsProject
+          ? [
+              "Restore this version?",
+              "Newer messages and edits in this task will be discarded.",
+              "This action cannot be undone.",
+            ]
+          : [
+              `Revert this thread to checkpoint ${turnCount}?`,
+              "This will discard newer messages and turn diffs in this thread.",
+              "This action cannot be undone.",
+            ]
+        ).join("\n"),
       );
       if (!confirmed) {
         return;
@@ -3878,6 +3885,7 @@ function ChatViewContent(props: ChatViewProps) {
       phase,
       revertThreadCheckpoint,
       setThreadError,
+      isDocsProject,
     ],
   );
 
@@ -4895,11 +4903,19 @@ function ChatViewContent(props: ChatViewProps) {
   const onOpenTurnDiff = useCallback(
     (turnId: TurnId, filePath?: string) => {
       if (!isServerThread || !activeThreadRef) return;
+      if (isDocsProject) {
+        // Docs workspaces have no diff surface; edited-file clicks open the
+        // document itself in the file preview.
+        if (filePath) {
+          useRightPanelStore.getState().openFile(activeThreadRef, filePath);
+        }
+        return;
+      }
       useDiffPanelStore.getState().selectTurn(activeThreadRef, turnId, filePath);
       useRightPanelStore.getState().open(activeThreadRef, "diff");
       onDiffPanelOpen?.();
     },
-    [activeThreadRef, isServerThread, onDiffPanelOpen],
+    [activeThreadRef, isDocsProject, isServerThread, onDiffPanelOpen],
   );
   // Both the Map and the revert handler are read from refs at call-time so
   // the callback reference is fully stable and never busts context identity.
@@ -4922,7 +4938,7 @@ function ChatViewContent(props: ChatViewProps) {
 
   const panelToggleControls = (
     <PanelLayoutControls
-      terminalAvailable={activeProject !== null}
+      terminalAvailable={activeProject !== null && !isDocsProject}
       terminalOpen={terminalUiState.terminalOpen}
       terminalShortcutLabel={shortcutLabelForCommand(keybindings, "terminal.toggle")}
       rightPanelAvailable={activeProject !== null}
@@ -5102,6 +5118,7 @@ function ChatViewContent(props: ChatViewProps) {
                 timestampFormat={timestampFormat}
                 workspaceRoot={activeWorkspaceRoot}
                 skills={activeProviderStatus?.skills ?? EMPTY_PROVIDER_SKILLS}
+                docsMode={isDocsProject}
                 anchorMessageId={timelineAnchorMessageId}
                 onAnchorReady={onTimelineAnchorReady}
                 onAnchorSizeChanged={onTimelineAnchorSizeChanged}

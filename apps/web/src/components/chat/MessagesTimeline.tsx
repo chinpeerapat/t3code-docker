@@ -129,6 +129,11 @@ interface TimelineRowSharedState {
   workspaceRoot: string | undefined;
   skills: ReadonlyArray<Pick<ServerProviderSkill, "name" | "displayName">>;
   activeThreadEnvironmentId: EnvironmentId;
+  /**
+   * Docs workspaces present agent edits as document changes: no diff
+   * vocabulary, no "View diff" action (the turn-diff callback opens files).
+   */
+  docsMode: boolean;
   onRevertUserMessage: (messageId: MessageId) => void;
   onImageExpand: (preview: ExpandedImagePreview) => void;
   onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
@@ -173,6 +178,7 @@ interface MessagesTimelineProps {
   timestampFormat: TimestampFormat;
   workspaceRoot: string | undefined;
   skills?: ReadonlyArray<Pick<ServerProviderSkill, "name" | "displayName">>;
+  docsMode?: boolean;
   anchorMessageId: MessageId | null;
   onAnchorReady: (messageId: MessageId, anchorIndex: number) => void;
   onAnchorSizeChanged: (messageId: MessageId, size: number) => void;
@@ -206,6 +212,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   timestampFormat,
   workspaceRoot,
   skills = EMPTY_TIMELINE_SKILLS,
+  docsMode = false,
   anchorMessageId,
   onAnchorReady,
   onAnchorSizeChanged,
@@ -416,6 +423,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       workspaceRoot,
       skills,
       activeThreadEnvironmentId,
+      docsMode,
       onRevertUserMessage,
       onImageExpand,
       onOpenTurnDiff,
@@ -430,6 +438,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       workspaceRoot,
       skills,
       activeThreadEnvironmentId,
+      docsMode,
       onRevertUserMessage,
       onImageExpand,
       onOpenTurnDiff,
@@ -932,6 +941,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
 function RevertUserMessageButton({ messageId }: { messageId: MessageId }) {
   const ctx = use(TimelineRowCtx);
   const activity = use(TimelineRowActivityCtx);
+  const revertLabel = ctx.docsMode ? "Restore this version" : "Revert to this message";
 
   return (
     <Tooltip>
@@ -943,13 +953,13 @@ function RevertUserMessageButton({ messageId }: { messageId: MessageId }) {
             variant="ghost"
             disabled={activity.isRevertingCheckpoint || activity.isWorking}
             onClick={() => ctx.onRevertUserMessage(messageId)}
-            aria-label="Revert to this message"
+            aria-label={revertLabel}
           />
         }
       >
         <Undo2Icon className="size-3" />
       </TooltipTrigger>
-      <TooltipPopup side="top">Revert to this message</TooltipPopup>
+      <TooltipPopup side="top">{revertLabel}</TooltipPopup>
     </Tooltip>
   );
 }
@@ -1230,6 +1240,7 @@ function AssistantChangedFilesSectionInner({
   resolvedTheme: "light" | "dark";
   onOpenTurnDiff: (turnId: TurnId, filePath?: string) => void;
 }) {
+  const docsMode = use(TimelineRowCtx).docsMode;
   const allDirectoriesExpanded = useUiStateStore(
     (store) => store.threadChangedFilesExpandedById[routeThreadKey]?.[turnSummary.turnId] ?? true,
   );
@@ -1241,8 +1252,10 @@ function AssistantChangedFilesSectionInner({
     <div className="mt-2 rounded-lg border border-border/80 bg-card/45 p-2.5">
       <div className="sticky top-2 z-10 mb-1.5 flex items-center justify-between gap-2 bg-[color-mix(in_srgb,var(--card)_45%,var(--background))] before:absolute before:inset-x-0 before:-top-2 before:h-2 before:bg-[color-mix(in_srgb,var(--card)_45%,var(--background))] before:content-['']">
         <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/65">
-          <span>Changed files ({changedFileCountLabel})</span>
-          {hasNonZeroStat(summaryStat) && (
+          <span>
+            {docsMode ? "Edited files" : "Changed files"} ({changedFileCountLabel})
+          </span>
+          {!docsMode && hasNonZeroStat(summaryStat) && (
             <>
               <span className="mx-1">•</span>
               <DiffStatLabel additions={summaryStat.additions} deletions={summaryStat.deletions} />
@@ -1259,14 +1272,16 @@ function AssistantChangedFilesSectionInner({
           >
             {allDirectoriesExpanded ? "Collapse all" : "Expand all"}
           </Button>
-          <Button
-            type="button"
-            size="xs"
-            variant="outline"
-            onClick={() => onOpenTurnDiff(turnSummary.turnId, checkpointFiles[0]?.path)}
-          >
-            View diff
-          </Button>
+          {!docsMode && (
+            <Button
+              type="button"
+              size="xs"
+              variant="outline"
+              onClick={() => onOpenTurnDiff(turnSummary.turnId, checkpointFiles[0]?.path)}
+            >
+              View diff
+            </Button>
+          )}
         </div>
       </div>
       <ChangedFilesTree
