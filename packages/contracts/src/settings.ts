@@ -2,7 +2,7 @@ import * as Effect from "effect/Effect";
 import * as Duration from "effect/Duration";
 import * as Schema from "effect/Schema";
 import * as SchemaTransformation from "effect/SchemaTransformation";
-import { TrimmedNonEmptyString, TrimmedString } from "./baseSchemas.ts";
+import { ProjectId, TrimmedNonEmptyString, TrimmedString } from "./baseSchemas.ts";
 import { DEFAULT_GIT_TEXT_GENERATION_MODEL, ProviderOptionSelections } from "./model.ts";
 import { ModelSelection } from "./orchestration.ts";
 import { ProviderInstanceConfig, ProviderInstanceId } from "./providerInstance.ts";
@@ -363,6 +363,23 @@ export type ObservabilitySettings = typeof ObservabilitySettings.Type;
 
 export const DEFAULT_AUTOMATIC_GIT_FETCH_INTERVAL = Duration.seconds(30);
 
+/**
+ * A user-configured MCP connector attached to a single project. The agent
+ * session for that project gets the server injected alongside the built-in
+ * t3-code MCP endpoint. `authHeader` holds the full `Authorization` header
+ * value; it is redacted before settings are sent to clients
+ * (`authHeaderRedacted: true` marks a stored value that the client omits).
+ */
+export const ProjectMcpConnector = Schema.Struct({
+  id: TrimmedNonEmptyString,
+  name: TrimmedNonEmptyString,
+  url: TrimmedNonEmptyString,
+  authHeader: Schema.String.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
+  authHeaderRedacted: Schema.optionalKey(Schema.Boolean),
+  enabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
+});
+export type ProjectMcpConnector = typeof ProjectMcpConnector.Type;
+
 export const ServerSettings = Schema.Struct({
   enableAssistantStreaming: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   enableProviderUpdateChecks: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
@@ -406,6 +423,11 @@ export const ServerSettings = Schema.Struct({
   // (forks, downgrades, in-flight PR branches) round-trip without loss.
   // See providerInstance.ts for the forward/backward compatibility invariant.
   providerInstances: Schema.Record(ProviderInstanceId, ProviderInstanceConfig).pipe(
+    Schema.withDecodingDefault(Effect.succeed({})),
+  ),
+  // User-configured MCP connectors, keyed by project id. Injected into agent
+  // sessions for the owning project (currently Claude only).
+  projectMcpConnectors: Schema.Record(ProjectId, Schema.Array(ProjectMcpConnector)).pipe(
     Schema.withDecodingDefault(Effect.succeed({})),
   ),
   observability: ObservabilitySettings.pipe(Schema.withDecodingDefault(Effect.succeed({}))),
@@ -530,6 +552,10 @@ export const ServerSettingsPatch = Schema.Struct({
   // patches risk leaving driver-specific config in a half-merged state.
   // The web UI sends a fully-formed map every time it edits this field.
   providerInstances: Schema.optionalKey(Schema.Record(ProviderInstanceId, ProviderInstanceConfig)),
+  // Whole-map replacement, same rationale as `providerInstances`.
+  projectMcpConnectors: Schema.optionalKey(
+    Schema.Record(ProjectId, Schema.Array(ProjectMcpConnector)),
+  ),
 });
 export type ServerSettingsPatch = typeof ServerSettingsPatch.Type;
 

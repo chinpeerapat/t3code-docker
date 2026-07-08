@@ -105,7 +105,47 @@ export function redactServerSettingsForClient(settings: ServerSettings): ServerS
         : instance,
     ]),
   );
-  return { ...settings, providerInstances };
+  const projectMcpConnectors = Object.fromEntries(
+    Object.entries(settings.projectMcpConnectors).map(([projectId, connectors]) => [
+      projectId,
+      connectors.map((connector) => ({
+        ...connector,
+        authHeader: "",
+        ...(connector.authHeader.length > 0 || connector.authHeaderRedacted
+          ? { authHeaderRedacted: true }
+          : {}),
+      })),
+    ]),
+  ) as ServerSettings["projectMcpConnectors"];
+  return { ...settings, providerInstances, projectMcpConnectors };
+}
+
+/**
+ * Clients never see connector auth headers, so patches echo the redaction
+ * marker back. Restore the stored value for any connector the client left
+ * redacted; a non-redacted header (including "") is taken as-is.
+ */
+export function restoreRedactedProjectMcpConnectors(
+  current: ServerSettings,
+  next: ServerSettings,
+): ServerSettings {
+  const projectMcpConnectors = Object.fromEntries(
+    Object.entries(next.projectMcpConnectors).map(([projectId, connectors]) => [
+      projectId,
+      connectors.map((connector) => {
+        if (!connector.authHeaderRedacted || connector.authHeader.length > 0) {
+          const { authHeaderRedacted: _omit, ...rest } = connector;
+          return rest;
+        }
+        const existing = current.projectMcpConnectors[
+          projectId as keyof typeof current.projectMcpConnectors
+        ]?.find((candidate) => candidate.id === connector.id);
+        const { authHeaderRedacted: _omit, ...rest } = connector;
+        return { ...rest, authHeader: existing?.authHeader ?? "" };
+      }),
+    ]),
+  ) as ServerSettings["projectMcpConnectors"];
+  return { ...next, projectMcpConnectors };
 }
 
 export class ServerSettingsService extends Context.Service<
@@ -569,7 +609,7 @@ const make = Effect.gen(function* () {
           const current = yield* getSettingsFromCache;
           const nextPersisted = yield* persistProviderEnvironmentSecrets(
             current,
-            applyServerSettingsPatch(current, patch),
+            restoreRedactedProjectMcpConnectors(current, applyServerSettingsPatch(current, patch)),
           );
           const next = yield* normalizeServerSettings(nextPersisted);
           yield* writeSettingsAtomically(next);

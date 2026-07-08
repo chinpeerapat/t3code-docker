@@ -454,6 +454,7 @@ export interface ChatComposerProps {
 
   // Pending approvals / inputs
   activePendingApproval: PendingApproval | null;
+  docsMode?: boolean;
   pendingApprovals: PendingApproval[];
   pendingUserInputs: PendingUserInput[];
   activePendingProgress: {
@@ -558,6 +559,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     isPreparingWorktree,
     environmentUnavailable,
     activePendingApproval,
+    docsMode = false,
     pendingApprovals,
     pendingUserInputs,
     activePendingProgress,
@@ -2091,6 +2093,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                 <ComposerPendingApprovalPanel
                   approval={activePendingApproval}
                   pendingCount={pendingApprovals.length}
+                  docsMode={docsMode}
                 />
               </div>
             ) : pendingUserInputs.length > 0 ? (
@@ -2121,6 +2124,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
               <ComposerPendingApprovalPanel
                 approval={activePendingApproval}
                 pendingCount={pendingApprovals.length}
+                docsMode={docsMode}
               />
               <div className="flex flex-wrap items-center justify-end gap-2 px-3 pb-3 sm:px-4">
                 <ComposerPendingApprovalActions

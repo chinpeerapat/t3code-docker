@@ -144,6 +144,16 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv> = {
         instanceId,
         environment: processEnv,
         ...(eventLoggers.native ? { nativeEventLogger: eventLoggers.native } : {}),
+        getProjectMcpConnectors: (projectId: string) =>
+          serverSettings.getSettings.pipe(
+            Effect.map(
+              (settings) =>
+                settings.projectMcpConnectors[
+                  projectId as keyof typeof settings.projectMcpConnectors
+                ] ?? [],
+            ),
+            Effect.orElseSucceed(() => []),
+          ),
       };
       const adapter = yield* makeClaudeAdapter(effectiveConfig, adapterOptions);
       const textGeneration = yield* makeClaudeTextGeneration(effectiveConfig, processEnv);

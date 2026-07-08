@@ -4,6 +4,7 @@ import {
   ApprovalRequestId,
   EventId,
   IsoDateTime,
+  ProjectId,
   ProviderItemId,
   ThreadId,
   TurnId,
@@ -13,6 +14,7 @@ import {
   ModelSelection,
   PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
   PROVIDER_SEND_TURN_MAX_INPUT_CHARS,
+  ProjectWorkspaceKind,
   ProviderApprovalDecision,
   ProviderApprovalPolicy,
   ProviderInteractionMode,
@@ -61,6 +63,13 @@ export const ProviderSessionStartInput = Schema.Struct({
   approvalPolicy: Schema.optional(ProviderApprovalPolicy),
   sandboxMode: Schema.optional(ProviderSandboxMode),
   runtimeMode: RuntimeMode,
+  /**
+   * Project context for the session. Docs workspaces steer the agent toward
+   * document deliverables and plain language; projectId lets adapters attach
+   * per-project configuration such as MCP connectors.
+   */
+  projectId: Schema.optional(ProjectId),
+  workspaceKind: Schema.optional(ProjectWorkspaceKind),
 });
 export type ProviderSessionStartInput = typeof ProviderSessionStartInput.Type;
 

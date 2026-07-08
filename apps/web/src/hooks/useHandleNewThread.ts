@@ -173,7 +173,10 @@ export function useNewThreadHandler() {
               envMode: initialEnvMode,
               newWorktreesStartFromOrigin: environmentSettings.newWorktreesStartFromOrigin,
             }),
-          runtimeMode: DEFAULT_RUNTIME_MODE,
+          // Docs projects default to supervised edits: the agent can write in
+          // the workspace but commands and outward actions ask first.
+          runtimeMode:
+            project?.workspaceKind === "docs" ? "auto-accept-edits" : DEFAULT_RUNTIME_MODE,
         });
         applyStickyState(draftId);
 

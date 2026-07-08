@@ -203,6 +203,7 @@ import { environmentShell } from "../state/shell";
 import { ChatComposer, type ChatComposerHandle } from "./chat/ChatComposer";
 import { ExpandedImageDialog } from "./chat/ExpandedImageDialog";
 import { PullRequestThreadDialog } from "./PullRequestThreadDialog";
+import { DocsTemplateLauncher, type DocsTemplate } from "./chat/DocsTemplateLauncher";
 import { MessagesTimeline } from "./chat/MessagesTimeline";
 import { ChatHeader } from "./chat/ChatHeader";
 import { PanelLayoutControls, RightPanelMaximizeControl } from "./chat/PanelLayoutControls";
@@ -1564,7 +1565,8 @@ function ChatViewContent(props: ChatViewProps) {
       setLogicalProjectDraftThreadId(logicalProjectKey, activeProjectRef, nextDraftId, {
         threadId: nextThreadId,
         createdAt: new Date().toISOString(),
-        runtimeMode: DEFAULT_RUNTIME_MODE,
+        runtimeMode:
+          activeProject?.workspaceKind === "docs" ? "auto-accept-edits" : DEFAULT_RUNTIME_MODE,
         interactionMode: DEFAULT_INTERACTION_MODE,
         ...input,
       });
@@ -4900,6 +4902,21 @@ function ChatViewContent(props: ChatViewProps) {
   const onExpandTimelineImage = useCallback((preview: ExpandedImagePreview) => {
     setExpandedImage(preview);
   }, []);
+  const handlePickDocsTemplate = useCallback(
+    (template: DocsTemplate) => {
+      const prompt = template.prompt;
+      promptRef.current = prompt;
+      setComposerDraftPrompt(composerDraftTarget, prompt);
+      composerRef.current?.resetCursorState({
+        cursor: collapseExpandedComposerCursor(prompt, prompt.length),
+        prompt,
+        detectTrigger: false,
+      });
+      scheduleComposerFocus();
+    },
+    [composerDraftTarget, scheduleComposerFocus, setComposerDraftPrompt],
+  );
+
   const onOpenTurnDiff = useCallback(
     (turnId: TurnId, filePath?: string) => {
       if (!isServerThread || !activeThreadRef) return;
@@ -5127,6 +5144,23 @@ function ChatViewContent(props: ChatViewProps) {
                 onManualNavigation={cancelTimelineLiveFollowForUserNavigation}
               />
 
+              {isDocsProject &&
+              !isWorking &&
+              activeThread.messages.length === 0 &&
+              optimisticUserMessages.length === 0 ? (
+                <div
+                  className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center overflow-y-auto px-6 py-8"
+                  style={{ bottom: composerOverlayHeight }}
+                >
+                  <div className="flex min-h-full items-center">
+                    <DocsTemplateLauncher
+                      className="pointer-events-auto"
+                      onPick={handlePickDocsTemplate}
+                    />
+                  </div>
+                </div>
+              ) : null}
+
               {/* scroll to end pill — shown when user has scrolled away from the live edge */}
               {showScrollToBottom && (
                 <div
@@ -5183,6 +5217,7 @@ function ChatViewContent(props: ChatViewProps) {
                       isPreparingWorktree={isPreparingWorktree}
                       environmentUnavailable={activeEnvironmentUnavailableState}
                       activePendingApproval={activePendingApproval}
+                      docsMode={isDocsProject}
                       pendingApprovals={pendingApprovals}
                       pendingUserInputs={pendingUserInputs}
                       activePendingProgress={activePendingProgress}

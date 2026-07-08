@@ -483,6 +483,7 @@ const make = Effect.gen(function* () {
         modelSelection: desiredModelSelection,
         ...(input?.resumeCursor !== undefined ? { resumeCursor: input.resumeCursor } : {}),
         runtimeMode: desiredRuntimeMode,
+        ...(project ? { projectId: project.id, workspaceKind: project.workspaceKind } : {}),
       });
 
     const bindSessionToThread = (session: ProviderSession) =>

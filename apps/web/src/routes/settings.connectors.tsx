@@ -1,0 +1,11 @@
+import { createFileRoute } from "@tanstack/react-router";
+
+import { ConnectorsSettingsPanel } from "../components/settings/ConnectorsSettings";
+
+function SettingsConnectorsRoute() {
+  return <ConnectorsSettingsPanel />;
+}
+
+export const Route = createFileRoute("/settings/connectors")({
+  component: SettingsConnectorsRoute,
+});

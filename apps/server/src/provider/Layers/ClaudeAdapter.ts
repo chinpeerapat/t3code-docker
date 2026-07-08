@@ -26,6 +26,7 @@ import {
   type CanonicalItemType,
   type CanonicalRequestType,
   type ClaudeSettings,
+  type ProjectMcpConnector,
   EventId,
   type ProviderApprovalDecision,
   ProviderDriverKind,
@@ -220,7 +221,28 @@ export interface ClaudeAdapterLiveOptions {
   }) => ClaudeQueryRuntime;
   readonly nativeEventLogPath?: string;
   readonly nativeEventLogger?: EventNdjsonLogger;
+  /**
+   * Resolves user-configured MCP connectors for a project so the session can
+   * mount them next to the built-in t3-code MCP endpoint.
+   */
+  readonly getProjectMcpConnectors?: (
+    projectId: string,
+  ) => Effect.Effect<ReadonlyArray<ProjectMcpConnector>>;
 }
+
+/**
+ * Appended to the Claude Code system prompt for sessions in docs workspaces
+ * (workspaceKind "docs"): non-coding work where the user is not a developer
+ * and deliverables are documents, not code.
+ */
+export const DOCS_WORKSPACE_SYSTEM_PROMPT_APPEND = [
+  "This workspace is a documents workspace for non-coding work, and the user is not a programmer.",
+  "- Deliverables are documents: reports, spreadsheets, presentations, PDFs. Save every deliverable as a file in the workspace folder.",
+  "- Prefer polished, ready-to-share formats (.docx, .xlsx, .pptx, .pdf); fall back to clean markdown or HTML when document tooling is unavailable.",
+  "- Communicate in plain language. Avoid programming jargon, and never mention git, commits, branches, diffs, or repositories - version history is handled for the user automatically.",
+  "- Do not create or modify files outside this workspace folder.",
+  "- Ask before any outward-facing action such as sending, publishing, or sharing anything beyond this workspace.",
+].join("\n");
 
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -3440,11 +3462,34 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
         ...(ultracode ? { ultracode: true } : {}),
       };
       const mcpSession = McpProviderSession.readMcpProviderSession(input.threadId);
+      const isDocsWorkspace = input.workspaceKind === "docs";
+      const projectConnectors =
+        input.projectId !== undefined && options?.getProjectMcpConnectors
+          ? (yield* options.getProjectMcpConnectors(input.projectId)).filter(
+              (connector) => connector.enabled,
+            )
+          : [];
+      const connectorMcpServers = Object.fromEntries(
+        projectConnectors.map((connector) => [
+          connector.name,
+          {
+            type: "http" as const,
+            url: connector.url,
+            ...(connector.authHeader.length > 0
+              ? { headers: { Authorization: connector.authHeader } }
+              : {}),
+          },
+        ]),
+      );
       const queryOptions: ClaudeQueryOptions = {
         ...(input.cwd ? { cwd: input.cwd } : {}),
         ...(apiModelId ? { model: apiModelId } : {}),
         pathToClaudeCodeExecutable: claudeBinaryPath,
-        systemPrompt: { type: "preset", preset: "claude_code" },
+        systemPrompt: {
+          type: "preset",
+          preset: "claude_code",
+          ...(isDocsWorkspace ? { append: DOCS_WORKSPACE_SYSTEM_PROMPT_APPEND } : {}),
+        },
         settingSources: [...CLAUDE_SETTING_SOURCES],
         // `ultracode` is a Claude Code setting, not an API effort level. It is
         // normalized to `xhigh` above and paired with `settings.ultracode`.
@@ -3465,16 +3510,21 @@ export const makeClaudeAdapter = Effect.fn("makeClaudeAdapter")(function* (
         env: claudeEnvironment,
         ...(input.cwd ? { additionalDirectories: [input.cwd] } : {}),
         ...(Object.keys(extraArgs).length > 0 ? { extraArgs } : {}),
-        ...(mcpSession
+        ...(mcpSession || projectConnectors.length > 0
           ? {
               mcpServers: {
-                "t3-code": {
-                  type: "http",
-                  url: mcpSession.endpoint,
-                  headers: {
-                    Authorization: mcpSession.authorizationHeader,
-                  },
-                },
+                ...connectorMcpServers,
+                ...(mcpSession
+                  ? {
+                      "t3-code": {
+                        type: "http" as const,
+                        url: mcpSession.endpoint,
+                        headers: {
+                          Authorization: mcpSession.authorizationHeader,
+                        },
+                      },
+                    }
+                  : {}),
               },
             }
           : {}),
